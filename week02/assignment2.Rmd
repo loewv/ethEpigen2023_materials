@@ -1,0 +1,82 @@
+---
+title: "Assignment2"
+author: "Vanessa"
+output: html_document
+date: "2023-03-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+````{r}
+#load AnnotationHub library
+suppressPackageStartupMessages({
+library(AnnotationHub)
+library(ensembldb)
+library(GenomicRanges)
+library(epiwraps)
+})
+````
+1. Using AnnotationHub, find and download the following annotations data:
+  a. Mouse (Mus musculus) EnsDb object, version 102, genome build GRCm38
+````{r}
+ah<-AnnotationHub()
+#to display an interactive version of AnnotationHub
+#display(ah)
+#to query the AnnotationHub programmically
+q <- query(ah, c("Mus musculus", "EnsDB", "102", "GRCm38"))
+#display AH data
+q
+#AH name obtained from q: AH89211
+#downloading object by using ah[["object"]]
+mouse_ensdb <- ah[["AH89211"]]
+````
+  b. The mouse genome sequence (dna_sm) in TwoBit/2bit (instead of EnsDb) format for GRCm38
+````{r}
+  q2 <- query(ah, c("Mus musculus","TwoBitFile","102","GRCm38","dna_sm"))
+  q2
+#downloading using ID obtained from query2
+ah[["AH88477"]]
+````
+  c. The drosophila melanogaster genome sequence (dna_sm) in TwoBit/2bit format for     BDGP6
+````{r}
+q3 <- query(ah, c("Drosophila melanogaster","dna_sm","TwoBitFile","BDGP6"))
+q3
+#had 24 records, took the top record (AH49674)
+#(is there a way to refine the search so I get only one entry?)
+ah[["AH49674"]]
+````
+2. Using the mouse EnsDb, find the following:
+  a. How many different ensembl gene IDs and gene symbols are there for protein-coding genes? ->104 sequences (?)
+````{r}
+#extract transcripts from 1a.
+txs <- transcripts(mouse_ensdb)
+txs
+#to see filter possibilities
+#supportedFilters()
+
+#seqlevels: for getting/setting/modifying the sequence info stored in an object
+seqlevels(txs)
+#head: returns the first or last parts of a vector, matrix, table, data frame or function; $ to extract a subset of a dataset
+#here: returns biotypes
+head(txs$tx_biotype)
+
+head(txs[,"tx_biotype"])
+table(seqnames(txs))
+table(txs$tx_biotype)
+#exons: extracts genomic features from object
+#returning exons split by transcripts, limiting ourselves to protein-coding transcripts
+PCexsPerTx <- exonsBy(mouse_ensdb, column=c("tx_id","tx_biotype"), 
+                    filter=TxBiotypeFilter("protein_coding"))
+PCexsPerTx
+
+````
+  b. Plot the distribution of the (spliced) length of protein coding transcripts
+````{r}
+#extract exons of protein-coding transcripts form the database (done in chunk6)
+#split exons by transcript (done in chunk6)
+#sum width of exons of each transcript
+lenexsPerTx <- lengths(PCexsPerTx)
+hist(lenexsPerTx)
+````
