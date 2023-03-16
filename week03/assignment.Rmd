@@ -1,0 +1,99 @@
+---
+title: "assignment3"
+author: "Vanessa Löw"
+date: "2023-03-15"
+output: html_document
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(AnnotationHub)
+  library(Rsubread)
+  library(rtracklayer)
+  library(Biostrings)
+  library(Rfastp)
+  library(epiwraps)
+})
+ah <- AnnotationHub()
+```
+
+```{r}
+getwd()
+```
+
+*1. Download the following Drosophila ChIP-seq for the protein CTCF:
+
+```{r, eval=FALSE}
+#increase download times for large downloads
+options(timeout=3600)
+#creation of subdirectory
+dir.create("raw")
+download.file("https://www.encodeproject.org/files/ENCFF127RRR/@@download/ENCFF127RRR.fastq.gz", dest="raw/Myc.fastq.gz")
+```
+*2. Process it from the raw data, obtaining:
+**a. bam file
+
+#Aligning reads to create .bam files
+
+## Using Rsubread
+
+### Building a genome index for mapping
+
+This we have to do only once for a genome, and can then re-use across projects
+the trimfastq files look exactly like the normal fastq files, but are smaller
+
+```{r, eval=FALSE}
+# we get the genome sequence from AnnotationHub
+genome <- ah[["AH49674"]]
+# we create a new directory that will contain the genome index
+dir.create("BDGP6_genome")
+# we write the genome sequence in fasta format
+export(import.2bit(genome), "BDGP6_genome/genome.fasta.gz", compress=TRUE)
+# we build a Rsubread index (can also be indexed by other software of choice)
+Rsubread::buildindex("BDGP6_genome/rsubread", reference="BDGP6_genome/genome.fasta.gz")
+```
+
+### Trimming
+especially important in epigenomics data, not so much in RNA data
+## Using Rfastp
+(no input control needed for this exercise)
+
+```{r}
+dir.create("aligned")
+# package::function specifies that a certain function is from a certain package (for functions with identical names)
+align.stats <- Rsubread::align(index="BDGP6_genome/rsubread", type="dna",
+                               readfile1=c("rfastp.trimmed/Myc_R1.fastq.gz"),
+                               output_file=c("aligned/Myc.bam"),
+                               nthreads=6, sortReadsByCoordinates=TRUE)
+#alignment statistics e.g., total reads, unmapped reads etc.
+align.stats
+```
+
+**b. peaks
+## Using MACS2
+```{bash engine.opts='-l'}
+mkdir -p peaks
+macs2 callpeak --outdir peaks -n Myc --gsize dm -t aligned/Myc.bam -c aligned/input.bam
+# macs3 works in the same way
+```
+
+Import the peaks in R:
+
+```{r}
+peaks <- rtracklayer::import("peaks/Myc_peaks.narrowPeak")
+source("peaks/Myc_model.r")
+peaks
+```
+*** I do not get any objects here, as Myx_peaks.narrowPeak is an empty file...
+
+*3. Report:
+**a. how many reads (and what percentage) were mapped
+2351375 out of 3504769 reads were mapped, which is equivalent to 66%
+**b. how many peaks were found
+Number of peaks found is 1696 (paired)
+*4. Plot the signal around one of the peaks
+#I cannot plot the signal as the file is empty so there is nothing to plot, so I had to stop this function from running to be able to knit the document
+```{r, eval=FALSE}
+library(epiwraps)
+plotSignalTracks(peaks)
+```
